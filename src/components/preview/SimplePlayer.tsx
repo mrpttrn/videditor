@@ -4,6 +4,7 @@ import {
   useRef,
   useEffect,
   useState,
+  useMemo,
   type RefObject,
 } from 'react';
 import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
@@ -40,53 +41,41 @@ export const SimplePlayer = forwardRef<SimplePlayerRef, Props>(({ onTimeUpdate }
   const rafRef = useRef<number | null>(null);
   const [playing, setPlaying] = useState(false);
 
-  const durationSec = getDurationSec(clips);
-  const mediaMap = new Map<string, MediaItem>(mediaItems.map((m) => [m.id, m]));
+  const mediaMap = useMemo(
+    () => new Map<string, MediaItem>(mediaItems.map((m) => [m.id, m])),
+    [mediaItems],
+  );
 
-  // Find the first video track's active clip
-  const videoTracks = tracks.filter((t) => t.type === 'video');
-  let activeVideoClip: Clip | null = null;
-  let activeVideoMedia: MediaItem | null = null;
-  for (const track of videoTracks) {
-    const clip = getActiveClip(clips, track.id, playheadSec);
-    if (clip) {
-      const media = mediaMap.get(clip.mediaId);
-      if (media && media.type === 'video') {
-        activeVideoClip = clip;
-        activeVideoMedia = media;
-        break;
+  const videoTracks = useMemo(() => tracks.filter((t) => t.type === 'video'), [tracks]);
+
+  const durationSec = getDurationSec(clips);
+
+  const { activeVideoClip, activeVideoMedia } = useMemo(() => {
+    for (const track of videoTracks) {
+      const clip = getActiveClip(clips, track.id, playheadSec);
+      if (clip) {
+        const media = mediaMap.get(clip.mediaId);
+        if (media && media.type === 'video') {
+          return { activeVideoClip: clip, activeVideoMedia: media };
+        }
       }
     }
-  }
+    return { activeVideoClip: null, activeVideoMedia: null };
+  }, [clips, videoTracks, playheadSec, mediaMap]);
 
-  // Expose play/pause/seekTo to parent
-  useImperativeHandle(ref, () => ({
-    seekTo(frame: number) {
-      const sec = frame / FPS;
-      setPlayhead(sec);
-      if (videoRef.current && activeVideoClip) {
-        videoRef.current.currentTime = sec - activeVideoClip.startSec + activeVideoClip.trimStartSec;
-      }
-    },
-    play() {
-      videoRef.current?.play();
-      setPlaying(true);
-      startRaf();
-    },
-    pause() {
-      videoRef.current?.pause();
-      setPlaying(false);
-      stopRaf();
-    },
-  }));
+  // Keep a ref so the RAF tick always sees the latest clip without stale closure
+  const activeVideoClipRef = useRef<Clip | null>(null);
+  useEffect(() => {
+    activeVideoClipRef.current = activeVideoClip;
+  }, [activeVideoClip]);
 
   function startRaf() {
     if (rafRef.current != null) return;
     const tick = () => {
       const vid = videoRef.current;
-      if (vid && activeVideoClip) {
-        const sec = vid.currentTime - activeVideoClip.trimStartSec + activeVideoClip.startSec;
-        setPlayhead(sec);
+      const clip = activeVideoClipRef.current;
+      if (vid && clip) {
+        const sec = vid.currentTime - clip.trimStartSec + clip.startSec;
         onTimeUpdate?.(Math.round(sec * FPS));
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -101,30 +90,57 @@ export const SimplePlayer = forwardRef<SimplePlayerRef, Props>(({ onTimeUpdate }
     }
   }
 
-  // Sync seekTo when playheadSec changes externally (ruler click)
-  const lastSeekRef = useRef<number>(-1);
+  // Expose play/pause/seekTo to parent
+  useImperativeHandle(
+    ref,
+    () => ({
+      seekTo(frame: number) {
+        const sec = frame / FPS;
+        setPlayhead(sec);
+        const clip = activeVideoClipRef.current;
+        if (videoRef.current && clip) {
+          videoRef.current.currentTime = sec - clip.startSec + clip.trimStartSec;
+        }
+      },
+      play() {
+        videoRef.current?.play();
+        setPlaying(true);
+        startRaf();
+      },
+      pause() {
+        videoRef.current?.pause();
+        setPlaying(false);
+        stopRaf();
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  // Sync video position when playhead changes externally (ruler click, not during playback)
   useEffect(() => {
-    if (playing) return; // don't fight with RAF during playback
-    if (Math.abs(playheadSec - lastSeekRef.current) < 0.02) return;
-    lastSeekRef.current = playheadSec;
-    if (videoRef.current && activeVideoClip) {
-      videoRef.current.currentTime = playheadSec - activeVideoClip.startSec + activeVideoClip.trimStartSec;
-    }
-  });
+    if (playing) return;
+    if (!activeVideoClip || !videoRef.current) return;
+    const targetTime = playheadSec - activeVideoClip.startSec + activeVideoClip.trimStartSec;
+    if (Math.abs(videoRef.current.currentTime - targetTime) < 0.02) return;
+    videoRef.current.currentTime = targetTime;
+  }, [playing, playheadSec, activeVideoClip]);
 
   // Stop RAF on unmount
   useEffect(() => () => stopRaf(), []);
 
-  // Determine background image from active image clips
-  const activeImageClips = tracks
-    .filter((t) => t.type === 'video')
-    .flatMap((t) => {
-      const clip = getActiveClip(clips, t.id, playheadSec);
-      if (!clip) return [];
-      const media = mediaMap.get(clip.mediaId);
-      if (!media || media.type !== 'image') return [];
-      return [media];
-    });
+  // Active image clips at current playhead
+  const activeImageClips = useMemo(
+    () =>
+      videoTracks.flatMap((t) => {
+        const clip = getActiveClip(clips, t.id, playheadSec);
+        if (!clip) return [];
+        const media = mediaMap.get(clip.mediaId);
+        if (!media || media.type !== 'image') return [];
+        return [media];
+      }),
+    [videoTracks, clips, playheadSec, mediaMap],
+  );
 
   return (
     <div
@@ -178,7 +194,7 @@ export const SimplePlayer = forwardRef<SimplePlayerRef, Props>(({ onTimeUpdate }
         </div>
       )}
 
-      {/* Timeline marker (current time / total) */}
+      {/* Timeline marker */}
       <div
         style={{
           position: 'absolute',
