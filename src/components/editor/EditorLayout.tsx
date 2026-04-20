@@ -10,32 +10,27 @@ export function EditorLayout() {
   const playerRef = useRef<PlayerRef>(null);
 
   return (
-    <div
-      className="w-full h-full"
-      style={{
-        display: 'grid',
-        gridTemplateRows: '52px 1fr 260px',
-        gridTemplateColumns: '240px 1fr 220px',
-        gridTemplateAreas: `
-          "topbar topbar topbar"
-          "media  preview properties"
-          "timeline timeline timeline"
-        `,
-      }}
-    >
-      <div style={{ gridArea: 'topbar' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+      {/* Top bar */}
+      <div style={{ flexShrink: 0, height: 52 }}>
         <TopBar playerRef={playerRef} />
       </div>
-      <div style={{ gridArea: 'media' }} className="min-h-0 overflow-hidden border-r border-[var(--border)]">
-        <MediaLibrary />
+
+      {/* Middle: media | preview | properties */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+        <div style={{ flexShrink: 0, width: 240, overflow: 'hidden', borderRight: '1px solid var(--border)' }}>
+          <MediaLibrary />
+        </div>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+          <PreviewPanel playerRef={playerRef} />
+        </div>
+        <div style={{ flexShrink: 0, width: 220, overflow: 'hidden' }}>
+          <PropertiesPanel />
+        </div>
       </div>
-      <div style={{ gridArea: 'preview' }} className="min-h-0 overflow-hidden">
-        <PreviewPanel playerRef={playerRef} />
-      </div>
-      <div style={{ gridArea: 'properties' }} className="min-h-0 overflow-hidden">
-        <PropertiesPanel />
-      </div>
-      <div style={{ gridArea: 'timeline' }} className="min-h-0 overflow-hidden">
+
+      {/* Timeline */}
+      <div style={{ flexShrink: 0, height: 260, overflow: 'hidden' }}>
         <TimelinePanel playerRef={playerRef} />
       </div>
     </div>

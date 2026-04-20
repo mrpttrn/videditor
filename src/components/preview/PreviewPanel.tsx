@@ -34,8 +34,19 @@ export function PreviewPanel({ playerRef }: Props) {
   const durationInFrames = Math.max(1, Math.round(durationSec * FPS));
 
   return (
-    <div className="flex flex-col h-full bg-black">
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-black">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#000' }}>
+      {/* Player area — flex-1 so it fills available height */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#111',
+          overflow: 'hidden',
+        }}
+      >
         <Player
           ref={playerRef}
           component={TimelineComposition}
