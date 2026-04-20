@@ -5,6 +5,7 @@ import { useMediaStore } from '~/store/useMediaStore';
 import { TimelineComposition } from '~/remotion/TimelineComposition';
 import { useRuler } from '~/hooks/useRuler';
 import { PlaybackControls } from './PlaybackControls';
+import { ErrorBoundary } from '~/components/editor/ErrorBoundary';
 import { FPS } from '~/types/timeline';
 
 interface Props {
@@ -34,8 +35,7 @@ export function PreviewPanel({ playerRef }: Props) {
   const durationInFrames = Math.max(1, Math.round(durationSec * FPS));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#000' }}>
-      {/* Player area — flex-1 so it fills available height */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0a0a0f' }}>
       <div
         style={{
           flex: 1,
@@ -43,22 +43,24 @@ export function PreviewPanel({ playerRef }: Props) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#111',
+          background: '#111118',
           overflow: 'hidden',
         }}
       >
-        <Player
-          ref={playerRef}
-          component={TimelineComposition}
-          durationInFrames={durationInFrames}
-          fps={FPS}
-          compositionWidth={compWidth}
-          compositionHeight={compHeight}
-          inputProps={{ tracks, clips, mediaItems }}
-          style={{ width: '100%', height: '100%' }}
-          controls={false}
-          clickToPlay={false}
-        />
+        <ErrorBoundary>
+          <Player
+            ref={playerRef}
+            component={TimelineComposition}
+            durationInFrames={durationInFrames}
+            fps={FPS}
+            compositionWidth={compWidth}
+            compositionHeight={compHeight}
+            inputProps={{ tracks, clips, mediaItems }}
+            style={{ width: '100%', height: '100%' }}
+            controls={false}
+            clickToPlay={false}
+          />
+        </ErrorBoundary>
       </div>
       <PlaybackControls playerRef={playerRef} />
     </div>
