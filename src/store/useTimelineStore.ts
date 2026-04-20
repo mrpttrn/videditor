@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { produce } from 'immer';
 import { generateId, clamp } from '~/lib/utils';
 import type { Clip, Track } from '~/types/timeline';
 import { MIN_ZOOM, MAX_ZOOM } from '~/types/timeline';
@@ -11,7 +10,7 @@ interface HistoryEntry {
   clips: Clip[];
 }
 
-interface TimelineStore {
+export interface TimelineStore {
   tracks: Track[];
   clips: Clip[];
   zoom: number;
@@ -20,28 +19,19 @@ interface TimelineStore {
   history: HistoryEntry[];
   historyIndex: number;
 
-  // Derived
-  durationSec: () => number;
-
-  // Clip mutations
   addClip: (clip: Omit<Clip, 'id'>) => void;
   updateClip: (id: string, patch: Partial<Clip>) => void;
   removeClip: (id: string) => void;
   splitClip: (id: string, atSec: number) => void;
 
-  // Track mutations
   addTrack: (type: 'video' | 'audio') => void;
   removeTrack: (id: string) => void;
   toggleMute: (id: string) => void;
 
-  // Playback
   setPlayhead: (sec: number) => void;
   setZoom: (zoom: number) => void;
-
-  // Selection
   setSelectedClip: (id: string | null) => void;
 
-  // Undo/redo
   undo: () => void;
   redo: () => void;
 }
@@ -57,7 +47,12 @@ function pushHistory(state: TimelineStore): { history: HistoryEntry[]; historyIn
   return { history: newHistory, historyIndex: newHistory.length - 1 };
 }
 
-export const useTimelineStore = create<TimelineStore>((set, get) => ({
+export function getDurationSec(clips: Clip[]): number {
+  if (clips.length === 0) return 30;
+  return Math.max(...clips.map((c) => c.startSec + c.durationSec), 30);
+}
+
+export const useTimelineStore = create<TimelineStore>((set) => ({
   tracks: [
     { id: 'track-1', label: 'Video 1', type: 'video', muted: false, locked: false },
     { id: 'track-2', label: 'Audio 1', type: 'audio', muted: false, locked: false },
@@ -69,12 +64,6 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   history: [],
   historyIndex: -1,
 
-  durationSec: () => {
-    const { clips } = get();
-    if (clips.length === 0) return 30;
-    return Math.max(...clips.map((c) => c.startSec + c.durationSec), 30);
-  },
-
   addClip: (clipData) => {
     set((s) => {
       const hist = pushHistory(s);
@@ -84,12 +73,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   },
 
   updateClip: (id, patch) => {
-    set(
-      produce((s: TimelineStore) => {
-        const idx = s.clips.findIndex((c) => c.id === id);
-        if (idx !== -1) Object.assign(s.clips[idx], patch);
-      }),
-    );
+    set((s) => ({
+      clips: s.clips.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+    }));
   },
 
   removeClip: (id) => {
@@ -110,11 +96,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
       const rightDuration = clip.durationSec - splitOffsetSec;
       const leftTrimEnd = clip.trimStartSec + leftDuration;
 
-      const left: Clip = {
-        ...clip,
-        durationSec: leftDuration,
-        trimEndSec: leftTrimEnd,
-      };
+      const left: Clip = { ...clip, durationSec: leftDuration, trimEndSec: leftTrimEnd };
       const right: Clip = {
         ...clip,
         id: generateId(),
@@ -124,10 +106,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
       };
 
       const hist = pushHistory(s);
-      return {
-        ...hist,
-        clips: s.clips.map((c) => (c.id === id ? left : c)).concat(right),
-      };
+      return { ...hist, clips: s.clips.map((c) => (c.id === id ? left : c)).concat(right) };
     });
   },
 
@@ -135,13 +114,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     set((s) => {
       const count = s.tracks.filter((t) => t.type === type).length + 1;
       const label = `${type === 'video' ? 'Video' : 'Audio'} ${count}`;
-      const track: Track = {
-        id: generateId(),
-        label,
-        type,
-        muted: false,
-        locked: false,
-      };
+      const track: Track = { id: generateId(), label, type, muted: false, locked: false };
       return { tracks: [...s.tracks, track] };
     });
   },
@@ -154,12 +127,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   },
 
   toggleMute: (id) => {
-    set(
-      produce((s: TimelineStore) => {
-        const t = s.tracks.find((t) => t.id === id);
-        if (t) t.muted = !t.muted;
-      }),
-    );
+    set((s) => ({
+      tracks: s.tracks.map((t) => (t.id === id ? { ...t, muted: !t.muted } : t)),
+    }));
   },
 
   setPlayhead: (sec) => set({ playheadSec: sec }),
@@ -172,11 +142,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     set((s) => {
       if (s.historyIndex < 0) return s;
       const entry = s.history[s.historyIndex];
-      return {
-        tracks: entry.tracks,
-        clips: entry.clips,
-        historyIndex: s.historyIndex - 1,
-      };
+      return { tracks: entry.tracks, clips: entry.clips, historyIndex: s.historyIndex - 1 };
     });
   },
 
@@ -184,11 +150,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     set((s) => {
       if (s.historyIndex >= s.history.length - 1) return s;
       const entry = s.history[s.historyIndex + 1];
-      return {
-        tracks: entry.tracks,
-        clips: entry.clips,
-        historyIndex: s.historyIndex + 1,
-      };
+      return { tracks: entry.tracks, clips: entry.clips, historyIndex: s.historyIndex + 1 };
     });
   },
 }));

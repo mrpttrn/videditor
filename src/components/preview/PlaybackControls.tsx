@@ -1,6 +1,6 @@
 import { useState, useEffect, type RefObject } from 'react';
 import type { PlayerRef } from '@remotion/player';
-import { useTimelineStore } from '~/store/useTimelineStore';
+import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
 import { formatTime } from '~/lib/utils';
 import { FPS } from '~/types/timeline';
 
@@ -11,8 +11,8 @@ interface Props {
 export function PlaybackControls({ playerRef }: Props) {
   const [playing, setPlaying] = useState(false);
   const playheadSec = useTimelineStore((s) => s.playheadSec);
-  const durationSecFn = useTimelineStore((s) => s.durationSec);
-  const durationSec = durationSecFn();
+  const clips = useTimelineStore((s) => s.clips);
+  const durationSec = getDurationSec(clips);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -37,17 +37,13 @@ export function PlaybackControls({ playerRef }: Props) {
     }
   }
 
-  function seekToStart() {
-    playerRef.current?.seekTo(0);
-  }
-
-  function seekToEnd() {
-    playerRef.current?.seekTo(Math.round(durationSec * FPS));
-  }
-
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-[var(--bg-surface)] border-t border-[var(--border)]">
-      <button onClick={seekToStart} title="Go to start" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+      <button
+        onClick={() => playerRef.current?.seekTo(0)}
+        title="Go to start"
+        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+      >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
           <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
         </svg>
@@ -69,7 +65,11 @@ export function PlaybackControls({ playerRef }: Props) {
         )}
       </button>
 
-      <button onClick={seekToEnd} title="Go to end" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+      <button
+        onClick={() => playerRef.current?.seekTo(Math.round(durationSec * FPS))}
+        title="Go to end"
+        className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+      >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
           <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
         </svg>

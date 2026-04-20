@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { PlayerRef } from '@remotion/player';
-import { useTimelineStore } from '~/store/useTimelineStore';
+import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
 import { FPS } from '~/types/timeline';
 import { cn } from '~/lib/utils';
 
@@ -11,15 +11,14 @@ interface Props {
 export function TopBar({ playerRef }: Props) {
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState(0);
-  const durationSecFn = useTimelineStore((s) => s.durationSec);
 
   async function handleExport() {
     const player = playerRef.current;
     if (!player || exporting) return;
 
-    const durationSec = durationSecFn();
+    const { clips } = useTimelineStore.getState();
+    const durationSec = getDurationSec(clips);
 
-    // Find canvas inside player container
     const container = (player as unknown as { getContainerNode?: () => HTMLElement | null }).getContainerNode?.();
     const canvas = container?.querySelector('canvas');
 
@@ -43,9 +42,7 @@ export function TopBar({ playerRef }: Props) {
     const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
 
-    const done = new Promise<void>((resolve) => {
-      recorder.onstop = () => resolve();
-    });
+    const done = new Promise<void>((resolve) => { recorder.onstop = () => resolve(); });
 
     recorder.start(100);
     player.seekTo(0);
@@ -56,14 +53,10 @@ export function TopBar({ playerRef }: Props) {
       setProgress(Math.min(p, 0.99));
     }, 200);
 
-    // Wait until playhead reaches end
     await new Promise<void>((resolve) => {
       const check = setInterval(() => {
         const ph = useTimelineStore.getState().playheadSec;
-        if (ph >= durationSec - 0.2) {
-          clearInterval(check);
-          resolve();
-        }
+        if (ph >= durationSec - 0.2) { clearInterval(check); resolve(); }
       }, 200);
     });
 

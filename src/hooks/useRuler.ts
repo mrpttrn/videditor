@@ -4,22 +4,10 @@ import { useTimelineStore } from '~/store/useTimelineStore';
 import { FPS } from '~/types/timeline';
 
 export function useRuler(playerRef: RefObject<PlayerRef | null>) {
-  const playheadSec = useTimelineStore((s) => s.playheadSec);
   const setPlayhead = useTimelineStore((s) => s.setPlayhead);
 
-  // Sync playhead changes from store → player
-  useEffect(() => {
-    const player = playerRef.current;
-    if (!player) return;
-    const targetFrame = Math.round(playheadSec * FPS);
-    try {
-      player.seekTo(targetFrame);
-    } catch {
-      // player may not be ready
-    }
-  }, [playheadSec, playerRef]);
-
-  // Sync player frame changes → store
+  // Only sync player → store. Seeking store → player is done directly
+  // via playerRef.current.seekTo() at the call site to avoid a loop.
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;

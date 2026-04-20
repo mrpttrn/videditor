@@ -1,7 +1,6 @@
-import { useTimelineStore } from '~/store/useTimelineStore';
+import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
 import { formatTimeShort } from '~/lib/utils';
-import { PIXELS_PER_SECOND } from '~/types/timeline';
-import { FPS } from '~/types/timeline';
+import { PIXELS_PER_SECOND, FPS } from '~/types/timeline';
 
 interface Props {
   playerRef: React.RefObject<import('@remotion/player').PlayerRef | null>;
@@ -11,14 +10,13 @@ interface Props {
 export function TimelineRuler({ playerRef, scrollLeft }: Props) {
   const zoom = useTimelineStore((s) => s.zoom);
   const playheadSec = useTimelineStore((s) => s.playheadSec);
-  const durationSecFn = useTimelineStore((s) => s.durationSec);
+  const clips = useTimelineStore((s) => s.clips);
   const setPlayhead = useTimelineStore((s) => s.setPlayhead);
 
   const pxPerSec = PIXELS_PER_SECOND * zoom;
-  const durationSec = durationSecFn();
+  const durationSec = getDurationSec(clips);
   const totalWidth = Math.max(durationSec * pxPerSec + 200, 800);
 
-  // Tick interval in seconds
   let tickInterval = 1;
   if (pxPerSec < 20) tickInterval = 10;
   else if (pxPerSec < 50) tickInterval = 5;
@@ -27,11 +25,6 @@ export function TimelineRuler({ playerRef, scrollLeft }: Props) {
   const ticks: number[] = [];
   for (let t = 0; t <= durationSec + tickInterval; t += tickInterval) {
     ticks.push(t);
-  }
-
-  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    seekTo(e);
   }
 
   function seekTo(e: React.PointerEvent<HTMLDivElement>) {
@@ -49,11 +42,8 @@ export function TimelineRuler({ playerRef, scrollLeft }: Props) {
   return (
     <div
       className="relative h-7 bg-[var(--bg-base)] border-b border-[var(--border)] overflow-hidden cursor-col-resize select-none flex-shrink-0"
-      onPointerDown={handlePointerDown}
-      onPointerMove={(e) => {
-        if (e.buttons !== 1) return;
-        seekTo(e);
-      }}
+      onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); seekTo(e); }}
+      onPointerMove={(e) => { if (e.buttons !== 1) return; seekTo(e); }}
     >
       <div className="absolute top-0 left-0 h-full" style={{ width: totalWidth }}>
         {ticks.map((t) => (
@@ -65,7 +55,6 @@ export function TimelineRuler({ playerRef, scrollLeft }: Props) {
           </div>
         ))}
 
-        {/* Playhead */}
         <div
           className="absolute top-0 bottom-0 pointer-events-none"
           style={{ left: playheadSec * pxPerSec }}

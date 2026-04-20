@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { useTimelineStore } from '~/store/useTimelineStore';
+import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
 import { TrackRow } from './TrackRow';
 import { PIXELS_PER_SECOND } from '~/types/timeline';
 
@@ -10,13 +10,13 @@ interface Props {
 
 export function TimelineTracks({ scrollLeft, onScroll }: Props) {
   const tracks = useTimelineStore((s) => s.tracks);
-  const durationSecFn = useTimelineStore((s) => s.durationSec);
+  const clips = useTimelineStore((s) => s.clips);
   const zoom = useTimelineStore((s) => s.zoom);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const pxPerSec = PIXELS_PER_SECOND * zoom;
-  const totalWidth = Math.max(durationSecFn() * pxPerSec + 200, 800);
+  const totalWidth = Math.max(getDurationSec(clips) * pxPerSec + 200, 800);
 
   useEffect(() => {
     const el = scrollRef.current;
