@@ -1,9 +1,10 @@
 import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
 import { formatTimeShort } from '~/lib/utils';
 import { PIXELS_PER_SECOND, FPS } from '~/types/timeline';
+import type { SimplePlayerRef } from '~/components/preview/SimplePlayer';
 
 interface Props {
-  playerRef: React.RefObject<import('@remotion/player').PlayerRef | null>;
+  playerRef: React.RefObject<SimplePlayerRef | null>;
   scrollLeft: number;
 }
 
@@ -63,8 +64,7 @@ export function TimelineRuler({ playerRef, scrollLeft }: Props) {
           <div
             className="absolute top-0 -translate-x-1/2"
             style={{
-              width: 0,
-              height: 0,
+              width: 0, height: 0,
               borderLeft: '5px solid transparent',
               borderRight: '5px solid transparent',
               borderTop: '6px solid #ef4444',

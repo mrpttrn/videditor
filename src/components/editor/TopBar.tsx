@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import type { PlayerRef } from '@remotion/player';
+import type { SimplePlayerRef } from '~/components/preview/SimplePlayer';
 import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
-import { FPS } from '~/types/timeline';
 import { cn } from '~/lib/utils';
 
 interface Props {
-  playerRef: React.RefObject<PlayerRef | null>;
+  playerRef: React.RefObject<SimplePlayerRef | null>;
 }
 
 export function TopBar({ playerRef }: Props) {
@@ -19,17 +18,16 @@ export function TopBar({ playerRef }: Props) {
     const { clips } = useTimelineStore.getState();
     const durationSec = getDurationSec(clips);
 
-    const container = (player as unknown as { getContainerNode?: () => HTMLElement | null }).getContainerNode?.();
-    const canvas = container?.querySelector('canvas');
-
-    if (!canvas) {
-      alert('Preview not ready. Play the timeline first, then export.');
+    // Find video element in preview panel
+    const videoEl = document.querySelector('#preview-panel video') as HTMLVideoElement | null;
+    if (!videoEl) {
+      alert('No video clip on the timeline to export.');
       return;
     }
 
     let stream: MediaStream;
     try {
-      stream = (canvas as HTMLCanvasElement & { captureStream(fps: number): MediaStream }).captureStream(FPS);
+      stream = (videoEl as HTMLVideoElement & { captureStream(fps: number): MediaStream }).captureStream(30);
     } catch {
       alert('Export not supported in this browser. Try Chrome or Edge.');
       return;

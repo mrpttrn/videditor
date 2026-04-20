@@ -1,71 +1,23 @@
-import { useMemo, type RefObject } from 'react';
-import { Player, type PlayerRef } from '@remotion/player';
-import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
-import { useMediaStore } from '~/store/useMediaStore';
-import { TimelineComposition } from '~/remotion/TimelineComposition';
-import { useRuler } from '~/hooks/useRuler';
+import type { RefObject } from 'react';
+import { SimplePlayer, type SimplePlayerRef } from './SimplePlayer';
 import { PlaybackControls } from './PlaybackControls';
-import { ErrorBoundary } from '~/components/editor/ErrorBoundary';
+import { useTimelineStore } from '~/store/useTimelineStore';
 import { FPS } from '~/types/timeline';
 
 interface Props {
-  playerRef: RefObject<PlayerRef | null>;
+  playerRef: RefObject<SimplePlayerRef | null>;
 }
 
 export function PreviewPanel({ playerRef }: Props) {
-  const tracks = useTimelineStore((s) => s.tracks);
-  const clips = useTimelineStore((s) => s.clips);
-  const mediaItems = useMediaStore((s) => s.items);
-
-  useRuler(playerRef);
-
-  const durationSec = getDurationSec(clips);
-
-  const firstVideoClip = clips.find((c) => {
-    const t = tracks.find((t) => t.id === c.trackId);
-    return t?.type === 'video';
-  });
-  const firstMedia = firstVideoClip
-    ? mediaItems.find((m) => m.id === firstVideoClip.mediaId)
-    : null;
-  const compWidth = firstMedia?.width || 1920;
-  const compHeight = firstMedia?.height || 1080;
-
-  const durationInFrames = Math.max(1, Math.round(durationSec * FPS));
-
-  // Memoize so Remotion Player doesn't receive a new object reference on every render
-  const inputProps = useMemo(
-    () => ({ tracks, clips, mediaItems }),
-    [tracks, clips, mediaItems],
-  );
+  const setPlayhead = useTimelineStore((s) => s.setPlayhead);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0a0a0f' }}>
-      <div
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#111118',
-          overflow: 'hidden',
-        }}
-      >
-        <ErrorBoundary>
-          <Player
-            ref={playerRef}
-            component={TimelineComposition}
-            durationInFrames={durationInFrames}
-            fps={FPS}
-            compositionWidth={compWidth}
-            compositionHeight={compHeight}
-            inputProps={inputProps}
-            style={{ width: '100%', height: '100%' }}
-            controls={false}
-            clickToPlay={false}
-          />
-        </ErrorBoundary>
+      <div id="preview-panel" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <SimplePlayer
+          ref={playerRef}
+          onTimeUpdate={(frame) => setPlayhead(frame / FPS)}
+        />
       </div>
       <PlaybackControls playerRef={playerRef} />
     </div>

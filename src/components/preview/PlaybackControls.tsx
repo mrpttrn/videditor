@@ -1,11 +1,11 @@
-import { useState, useEffect, type RefObject } from 'react';
-import type { PlayerRef } from '@remotion/player';
+import { useState, type RefObject } from 'react';
 import { useTimelineStore, getDurationSec } from '~/store/useTimelineStore';
 import { formatTime } from '~/lib/utils';
 import { FPS } from '~/types/timeline';
+import type { SimplePlayerRef } from './SimplePlayer';
 
 interface Props {
-  playerRef: RefObject<PlayerRef | null>;
+  playerRef: RefObject<SimplePlayerRef | null>;
 }
 
 export function PlaybackControls({ playerRef }: Props) {
@@ -14,33 +14,22 @@ export function PlaybackControls({ playerRef }: Props) {
   const clips = useTimelineStore((s) => s.clips);
   const durationSec = getDurationSec(clips);
 
-  useEffect(() => {
-    const player = playerRef.current;
-    if (!player) return;
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    player.addEventListener('play', onPlay);
-    player.addEventListener('pause', onPause);
-    return () => {
-      player.removeEventListener('play', onPlay);
-      player.removeEventListener('pause', onPause);
-    };
-  }, [playerRef]);
-
   function togglePlay() {
-    const player = playerRef.current;
-    if (!player) return;
+    const p = playerRef.current;
+    if (!p) return;
     if (playing) {
-      player.pause();
+      p.pause();
+      setPlaying(false);
     } else {
-      player.play();
+      p.play();
+      setPlaying(true);
     }
   }
 
   return (
     <div className="flex items-center gap-3 px-4 py-2 bg-[var(--bg-surface)] border-t border-[var(--border)]">
       <button
-        onClick={() => playerRef.current?.seekTo(0)}
+        onClick={() => { playerRef.current?.seekTo(0); setPlaying(false); }}
         title="Go to start"
         className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
       >
@@ -66,7 +55,7 @@ export function PlaybackControls({ playerRef }: Props) {
       </button>
 
       <button
-        onClick={() => playerRef.current?.seekTo(Math.round(durationSec * FPS))}
+        onClick={() => { playerRef.current?.seekTo(Math.round(durationSec * FPS)); setPlaying(false); }}
         title="Go to end"
         className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
       >

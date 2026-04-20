@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
-import type { PlayerRef } from '@remotion/player';
+import type { SimplePlayerRef } from '~/components/preview/SimplePlayer';
 import { TimelineControls } from './TimelineControls';
 import { TimelineRuler } from './TimelineRuler';
 import { TimelineTracks } from './TimelineTracks';
 
 interface Props {
-  playerRef: React.RefObject<PlayerRef | null>;
+  playerRef: React.RefObject<SimplePlayerRef | null>;
 }
 
 export function TimelinePanel({ playerRef }: Props) {
@@ -21,7 +21,6 @@ export function TimelinePanel({ playerRef }: Props) {
     <div className="flex flex-col h-full border-t border-[var(--border)] bg-[var(--bg-elevated)]">
       <TimelineControls />
 
-      {/* Ruler with track-label offset */}
       <div className="flex flex-shrink-0">
         <div className="w-28 flex-shrink-0 bg-[var(--bg-surface)] border-r border-b border-[var(--border)]" />
         <div ref={rulerScrollRef} className="flex-1 overflow-hidden">
